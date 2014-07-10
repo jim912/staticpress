@@ -201,6 +201,7 @@ class static_press_admin {
 		<div class="wrap" style="margin=top:2em;" id="<?php echo self::OPTION_PAGE; ?>">
 		<?php screen_icon(); ?>
 		<h2><?php echo esc_html( $title ); ?></h2>
+		<?php do_action( 'StaticPress::static_press_page_button_before' ); ?>
 		<?php submit_button(__('Rebuild', self::TEXT_DOMAIN), 'primary', 'rebuild'); ?>
 		<div id="rebuild-result"></div>
 		</div>
@@ -227,7 +228,7 @@ jQuery(function($){
 			.html('<p><strong><?php echo __('Initialyze...', self::TEXT_DOMAIN);?></strong></p>')
 			.after(loader);
 		$.ajax('<?php echo $admin_ajax; ?>',{
-			data: {action: 'static_press_init'},
+			data: {<?php echo apply_filters( 'StaticPress::static_press_init_data', "action: 'static_press_init'" ); ?>},
 			cache: false,
 			dataType: 'json',
 			type: 'POST',
@@ -256,7 +257,7 @@ jQuery(function($){
 
 	function static_press_fetch(){
 		$.ajax('<?php echo $admin_ajax; ?>',{
-			data: {action: 'static_press_fetch'},
+			data: {<?php echo apply_filters( 'StaticPress::static_press_fetch_data', "action: 'static_press_fetch'" ); ?>},
 			cache: false,
 			dataType: 'json',
 			type: 'POST',

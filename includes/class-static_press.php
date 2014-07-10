@@ -147,6 +147,8 @@ CREATE TABLE `{$this->url_table}` (
 		if (!is_user_logged_in())
 			wp_die('Forbidden');
 
+		do_action( 'StaticPress::pre_ajax_init' );
+
 		$urls = $this->insert_all_url();
 		$sql = $wpdb->prepare(
 			"select type, count(*) as count from {$this->url_table} where `last_upload` < %s and enable = 1 group by type",
@@ -167,6 +169,8 @@ CREATE TABLE `{$this->url_table}` (
 
 		if (!defined('WP_DEBUG_DISPLAY'))
 			define('WP_DEBUG_DISPLAY', false);
+
+		do_action( 'StaticPress::pre_ajax_fetch' );
 
 		$url = $this->fetch_url();
 		if (!$url) {
@@ -362,7 +366,7 @@ CREATE TABLE `{$this->url_table}` (
 
 	private function create_static_file($url, $file_type = 'other_page', $create_404 = true, $crawling = false) {
 		$url = apply_filters('StaticPress::get_url', $url);
-		$file_dest = untrailingslashit($this->static_dir) . $this->static_url($url);
+		$file_dest = apply_filters( 'StaticPress::file_dest', untrailingslashit($this->static_dir) . $this->static_url($url), $url, $this->static_dir, $this->static_url($url) );
 		$dir_sep = defined('DIRECTORY_SEPARATOR') ? DIRECTORY_SEPARATOR : '/';
 		if ( $dir_sep !== '/' )
 			$file_dest = str_replace('/', $dir_sep, $file_dest);
@@ -435,7 +439,8 @@ CREATE TABLE `{$this->url_table}` (
 	private function remote_get($url){
 		if (!preg_match('#^https://#i', $url))
 			$url = untrailingslashit($this->get_site_url()) . (preg_match('#^/#i', $url) ? $url : "/{$url}");
-		$response = wp_remote_get($url, $this->remote_get_option);
+		$remote_get_option = apply_filters( 'StaticPress::remote_get_option', $this->remote_get_option );
+		$response = wp_remote_get($url, $remote_get_option);
 		if (is_wp_error($response))
 			return false;
 		return array(
@@ -555,7 +560,7 @@ CREATE TABLE `{$this->url_table}` (
 				$plugin_dir  = trailingslashit(str_replace(ABSPATH, '/', WP_PLUGIN_DIR));
 				$theme_dir   = trailingslashit(str_replace(ABSPATH, '/', WP_CONTENT_DIR) . '/themes');
 				$file_source = untrailingslashit(ABSPATH) . $url['url'];
-				$file_dest   = untrailingslashit($this->static_dir) . $url['url'];
+				$file_dest   = apply_filters( 'StaticPress::file_dest', untrailingslashit($this->static_dir) . $url['url'], $url, $this->static_dir, $this->static_url($url) );
 				$pattern     = '#^(/(readme|readme-[^\.]+|license)\.(txt|html?)|('.preg_quote($plugin_dir).'|'.preg_quote($theme_dir).').*/((readme|changelog|license)\.(txt|html?)|(screenshot|screenshot-[0-9]+)\.(png|jpe?g|gif)))$#i';
 				if ($file_source === $file_dest) {
 					$url['enable'] = 0;
@@ -645,6 +650,7 @@ CREATE TABLE `{$this->url_table}` (
 		$urls = array_merge($urls, $this->terms_url());
 		$urls = array_merge($urls, $this->author_url());
 		$urls = array_merge($urls, $this->static_files_url());
+		$urls = apply_filters( 'StaticPress::get_urls', $urls );
 		return $urls;
 	}
 
@@ -656,7 +662,7 @@ CREATE TABLE `{$this->url_table}` (
 			'url' => apply_filters('StaticPress::get_url', $site_url),
 			'last_modified' => date('Y-m-d h:i:s'),
 			);
-		return $urls;
+		return apply_filters( 'StaticPress::front_page_url', $urls );
 	}
 
 	private function single_url($url_type = 'single') {
@@ -691,7 +697,7 @@ select ID, post_type, post_content, post_status, post_modified
 				'last_modified' => $modified,
 				);
 		}
-		return $urls;
+		return apply_filters( 'StaticPress::single_url', $urls );
 	}
 
 	private function get_term_info($term_id) {
@@ -771,7 +777,7 @@ select MAX(P.post_modified) as last_modified, count(P.ID) as count
 				}
 			}
 		}
-		return $urls;
+		return apply_filters( 'StaticPress::terms_url', $urls );
 	}
 
 	private function author_url($url_type = 'author_archive') {
@@ -808,7 +814,7 @@ SELECT DISTINCT post_author, COUNT(ID) AS count, MAX(post_modified) AS modified
 				'last_modified' => $modified,
 				);
 		}
-		return $urls;
+		return apply_filters( 'StaticPress::author_url', $urls );
 	}
 
 	private function static_files_url($url_type = 'static_file'){
@@ -834,7 +840,7 @@ SELECT DISTINCT post_author, COUNT(ID) AS count, MAX(post_modified) AS modified
 				'last_modified' => date('Y-m-d h:i:s', filemtime($static_file)),
 				);
 		}
-		return $urls;
+		return apply_filters( 'StaticPress::static_files_url', $urls );
 	}
 
 	private function url_exists($link) {
